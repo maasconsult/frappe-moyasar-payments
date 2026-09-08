@@ -1,0 +1,22 @@
+*.py[cod]
+__pycache__/
+.coverage
+.pytest_cache/
+.ruff_cache/
+.venv/
+env/
+node_modules/
+*.egg-info/
+.idea/
+.vscode/
+.DS_Store
+
+# Frappe bench/runtime data
+sites/
+logs/
+config/
+
+# Never commit local secrets
+.env
+.env.*
+!*.env.example

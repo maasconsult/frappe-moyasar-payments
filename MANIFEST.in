@@ -1,0 +1,2 @@
+recursive-include frappe_moyasar_payments *.css *.csv *.html *.ico *.js *.json *.md *.png *.py *.svg *.txt
+recursive-exclude frappe_moyasar_payments *.pyc
