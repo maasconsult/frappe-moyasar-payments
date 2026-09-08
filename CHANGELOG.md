@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2
+
+- Show credential-free Moyasar API validation details when checkout creation fails.
+- Preserve failed checkout diagnostics in Frappe Error Log after request rollback.
+- Add a non-mutating **Test API Connection** action to Moyasar Settings.
+
 ## 0.1.1
 
 - Work around stale or conflicting Frappe Web Form controller overrides.

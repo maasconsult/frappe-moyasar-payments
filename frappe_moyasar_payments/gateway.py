@@ -13,6 +13,7 @@ from frappe.utils import get_url, now_datetime
 from frappe_moyasar_payments.utils import (
     append_query_parameters,
     is_same_origin_url,
+    moyasar_error_message,
     normalize_currency,
     to_minor_units,
     token_digest,
@@ -20,6 +21,8 @@ from frappe_moyasar_payments.utils import (
 
 MOYASAR_API_BASE = "https://api.moyasar.com/v1"
 REQUEST_TIMEOUT_SECONDS = 30
+
+
 class MoyasarAPIError(RuntimeError):
     pass
 
@@ -117,12 +120,29 @@ def create_hosted_invoice(settings: Any, **kwargs: Any) -> str:
         _update_reference_summary(settings, transaction, "Initiated")
         return checkout_url
     except Exception as exc:
+        safe_error = _safe_error_message(exc)
         transaction.db_set(
-            {"status": "Error", "error_message": _safe_error_message(exc)},
+            {"status": "Error", "error_message": safe_error},
             update_modified=False,
         )
+        # The Web Form request is rolled back when checkout creation fails, so
+        # defer this diagnostic through Redis to preserve it independently of
+        # the failed transaction. It contains no credentials or request data.
+        frappe.log_error(
+            title="Moyasar checkout creation failed",
+            message=(
+                f"Reference: {reference_doctype} {reference_docname}\n"
+                f"Transaction: {transaction.name}\n"
+                f"Error: {safe_error}"
+            ),
+            reference_doctype=reference_doctype,
+            reference_name=reference_docname,
+            defer_insert=True,
+        )
         frappe.throw(
-            _("Moyasar could not create the checkout. Please try again."),
+            _("Moyasar could not create the checkout: {0}").format(
+                _public_error_message(exc)
+            ),
             title=_("Payment Gateway Error"),
         )
 
@@ -195,7 +215,7 @@ def _request(
         message = "Moyasar rejected the request"
         try:
             body = response.json()
-            message = body.get("message") or body.get("type") or message
+            message = moyasar_error_message(body) or message
         except (ValueError, TypeError):
             pass
         raise MoyasarAPIError(f"{message} (HTTP {response.status_code})")
@@ -343,3 +363,10 @@ def _update_reference_summary(settings: Any, transaction: Any, status: str) -> N
 def _safe_error_message(exc: Exception) -> str:
     # Never include request headers, keys, or raw payloads in the transaction log.
     return f"{type(exc).__name__}: {str(exc)[:400]}"
+
+
+def _public_error_message(exc: Exception) -> str:
+    """Return a credential-free reason suitable for the public Web Form."""
+    if isinstance(exc, MoyasarAPIError):
+        return str(exc)[:400]
+    return _("Unexpected gateway error. Please contact the site administrator.")

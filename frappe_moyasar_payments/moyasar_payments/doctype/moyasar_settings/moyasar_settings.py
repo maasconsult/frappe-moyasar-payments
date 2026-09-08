@@ -8,7 +8,7 @@ from frappe.model.document import Document
 from frappe.utils import get_url
 from payments.utils import create_payment_gateway
 
-from frappe_moyasar_payments.gateway import create_hosted_invoice
+from frappe_moyasar_payments.gateway import _request, create_hosted_invoice
 from frappe_moyasar_payments.utils import normalize_currency
 
 if TYPE_CHECKING:
@@ -69,3 +69,12 @@ class MoyasarSettings(Document):
             frappe.throw(_("Moyasar payment gateway is disabled"))
         self.validate_transaction_currency(kwargs.get("currency"))
         return create_hosted_invoice(self, **kwargs)
+
+    @frappe.whitelist()
+    def test_connection(self) -> str:
+        """Verify API reachability and credentials without creating an invoice."""
+        frappe.only_for("System Manager")
+        if not self.enabled:
+            frappe.throw(_("Moyasar payment gateway is disabled"))
+        _request(self, "GET", "/invoices?page=1")
+        return _("Moyasar API connection is working")

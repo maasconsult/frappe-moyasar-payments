@@ -6,6 +6,7 @@ from frappe_moyasar_payments.utils import (
     constant_time_token_matches,
     from_minor_units,
     is_same_origin_url,
+    moyasar_error_message,
     normalize_currency,
     to_minor_units,
     token_digest,
@@ -55,6 +56,36 @@ class CallbackAndRedirectSecurityTests(unittest.TestCase):
         result = append_query_parameters("https://erp.example.com/done?lang=en", status="paid")
         self.assertIn("lang=en", result)
         self.assertIn("status=paid", result)
+
+
+class MoyasarErrorTests(unittest.TestCase):
+    def test_field_validation_errors_are_included(self):
+        message = moyasar_error_message(
+            {
+                "type": "invalid_request",
+                "message": None,
+                "errors": {"callback_url": ["is invalid"], "amount": "is too small"},
+            }
+        )
+        self.assertEqual(
+            message,
+            "invalid request; callback_url: is invalid; amount: is too small",
+        )
+
+    def test_authentication_message_is_included(self):
+        self.assertEqual(
+            moyasar_error_message(
+                {
+                    "type": "authentication_error",
+                    "message": "Invalid authorization credentials",
+                    "errors": None,
+                }
+            ),
+            "Invalid authorization credentials",
+        )
+
+    def test_non_object_response_is_ignored(self):
+        self.assertEqual(moyasar_error_message(["unexpected"]), "")
 
 
 if __name__ == "__main__":

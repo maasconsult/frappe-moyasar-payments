@@ -4,6 +4,7 @@ import hashlib
 import hmac
 import re
 from decimal import Decimal, InvalidOperation
+from typing import Any
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 
@@ -118,3 +119,29 @@ def is_same_origin_url(candidate: str, site_url: str) -> bool:
         candidate_parts.scheme.lower() == site_parts.scheme.lower()
         and candidate_parts.netloc.lower() == site_parts.netloc.lower()
     )
+
+
+def moyasar_error_message(body: Any) -> str:
+    """Flatten Moyasar's message and field errors into a safe short string."""
+    if not isinstance(body, dict):
+        return ""
+
+    parts: list[str] = []
+    message = body.get("message")
+    error_type = body.get("type")
+    if message:
+        parts.append(str(message))
+    elif error_type:
+        parts.append(str(error_type).replace("_", " "))
+
+    errors = body.get("errors")
+    if isinstance(errors, dict):
+        for fieldname, field_errors in errors.items():
+            if isinstance(field_errors, (list, tuple)):
+                detail = ", ".join(str(value) for value in field_errors if value)
+            else:
+                detail = str(field_errors or "")
+            if detail:
+                parts.append(f"{fieldname}: {detail}")
+
+    return "; ".join(parts)[:350]
