@@ -6,6 +6,10 @@ Frappe documents.
 Version 0.1 focuses on payment collection and verification. It does **not**
 create Sales Invoices, Customers, Payment Entries, or General Ledger entries.
 
+Version 0.1.1 also includes a compatibility repair for Frappe v15 sites where
+the Payments submit override is active but the core Web Form controller remains
+cached.
+
 ## Compatibility
 
 - Frappe Framework 15
