@@ -15,6 +15,7 @@ from frappe_moyasar_payments.utils import (
     is_same_origin_url,
     moyasar_error_message,
     normalize_currency,
+    reference_summary_values,
     to_minor_units,
     token_digest,
 )
@@ -325,14 +326,13 @@ def _update_reference_summary(settings: Any, transaction: Any, status: str) -> N
         return
 
     meta = frappe.get_meta(transaction.reference_doctype)
-    candidates = {
-        "custom_moyasar_payment_status": status,
-        "custom_moyasar_invoice_id": transaction.moyasar_invoice_id,
-        "custom_moyasar_payment_id": transaction.moyasar_payment_id,
-        "custom_moyasar_paid_amount": transaction.amount if status == "Paid" else None,
-        "custom_moyasar_paid_at": transaction.paid_at if status == "Paid" else None,
-        "custom_seat_reserved": 1 if status == "Paid" else 0,
-    }
+    candidates = reference_summary_values(
+        status,
+        invoice_id=transaction.moyasar_invoice_id,
+        payment_id=transaction.moyasar_payment_id,
+        amount=transaction.amount,
+        paid_at=transaction.paid_at,
+    )
     values = {
         fieldname: value
         for fieldname, value in candidates.items()

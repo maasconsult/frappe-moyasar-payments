@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4
+
+- Avoid writing null values to CRM Lead paid-amount and paid-at fields while a
+  checkout is only initiated.
+- Write paid-only summary fields after Moyasar confirms payment.
+
 ## 0.1.3
 
 - Restrict friendly checkout handling to Moyasar API errors.

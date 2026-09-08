@@ -145,3 +145,28 @@ def moyasar_error_message(body: Any) -> str:
                 parts.append(f"{fieldname}: {detail}")
 
     return "; ".join(parts)[:350]
+
+
+def reference_summary_values(
+    status: str,
+    *,
+    invoice_id: Any = None,
+    payment_id: Any = None,
+    amount: Any = None,
+    paid_at: Any = None,
+) -> dict[str, Any]:
+    """Build reference updates without writing nulls to non-null columns."""
+    values: dict[str, Any] = {
+        "custom_moyasar_payment_status": status,
+        "custom_seat_reserved": 1 if status == "Paid" else 0,
+    }
+    if invoice_id:
+        values["custom_moyasar_invoice_id"] = invoice_id
+    if payment_id:
+        values["custom_moyasar_payment_id"] = payment_id
+    if status == "Paid":
+        if amount is not None:
+            values["custom_moyasar_paid_amount"] = amount
+        if paid_at:
+            values["custom_moyasar_paid_at"] = paid_at
+    return values

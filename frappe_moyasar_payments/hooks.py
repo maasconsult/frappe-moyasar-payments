@@ -4,7 +4,7 @@ app_publisher = "Maas Consult Middle East"
 app_description = "Reusable Moyasar hosted payment gateway for Frappe"
 app_email = ""
 app_license = "Proprietary"
-app_version = "0.1.3"
+app_version = "0.1.4"
 
 required_apps = ["payments"]
 

@@ -8,6 +8,7 @@ from frappe_moyasar_payments.utils import (
     is_same_origin_url,
     moyasar_error_message,
     normalize_currency,
+    reference_summary_values,
     to_minor_units,
     token_digest,
 )
@@ -86,6 +87,35 @@ class MoyasarErrorTests(unittest.TestCase):
 
     def test_non_object_response_is_ignored(self):
         self.assertEqual(moyasar_error_message(["unexpected"]), "")
+
+
+class ReferenceSummaryTests(unittest.TestCase):
+    def test_initiated_summary_does_not_write_paid_fields_or_nulls(self):
+        values = reference_summary_values(
+            "Initiated",
+            invoice_id="invoice-1",
+            payment_id=None,
+            amount="299.00",
+            paid_at=None,
+        )
+        self.assertEqual(values["custom_moyasar_payment_status"], "Initiated")
+        self.assertEqual(values["custom_moyasar_invoice_id"], "invoice-1")
+        self.assertEqual(values["custom_seat_reserved"], 0)
+        self.assertNotIn("custom_moyasar_paid_amount", values)
+        self.assertNotIn("custom_moyasar_paid_at", values)
+        self.assertNotIn(None, values.values())
+
+    def test_paid_summary_includes_payment_details(self):
+        values = reference_summary_values(
+            "Paid",
+            invoice_id="invoice-1",
+            payment_id="payment-1",
+            amount="299.00",
+            paid_at="2026-09-08 18:00:00",
+        )
+        self.assertEqual(values["custom_moyasar_paid_amount"], "299.00")
+        self.assertEqual(values["custom_moyasar_paid_at"], "2026-09-08 18:00:00")
+        self.assertEqual(values["custom_seat_reserved"], 1)
 
 
 if __name__ == "__main__":
