@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import secrets
 from datetime import datetime
-from typing import Any
+from typing import Any, NoReturn
 from urllib.parse import urlsplit
 
 import frappe
@@ -102,49 +102,36 @@ def create_hosted_invoice(settings: Any, **kwargs: Any) -> str:
 
     try:
         invoice = _request(settings, "POST", "/invoices", payload)
-        invoice_id = invoice.get("id")
-        checkout_url = invoice.get("url")
-        if not invoice_id or not checkout_url:
-            raise MoyasarAPIError("Moyasar returned an incomplete invoice response")
+    except MoyasarAPIError as exc:
+        _raise_checkout_api_error(
+            exc, transaction, reference_doctype, reference_docname
+        )
 
-        transaction.db_set(
-            {
-                "moyasar_invoice_id": invoice_id,
-                "checkout_url": checkout_url,
-                "error_message": None,
-            },
-            update_modified=False,
+    invoice_id = invoice.get("id")
+    checkout_url = invoice.get("url")
+    if not invoice_id or not checkout_url:
+        _raise_checkout_api_error(
+            MoyasarAPIError("Moyasar returned an incomplete invoice response"),
+            transaction,
+            reference_doctype,
+            reference_docname,
         )
-        transaction.moyasar_invoice_id = invoice_id
-        transaction.checkout_url = checkout_url
-        _update_reference_summary(settings, transaction, "Initiated")
-        return checkout_url
-    except Exception as exc:
-        safe_error = _safe_error_message(exc)
-        transaction.db_set(
-            {"status": "Error", "error_message": safe_error},
-            update_modified=False,
-        )
-        # The Web Form request is rolled back when checkout creation fails, so
-        # defer this diagnostic through Redis to preserve it independently of
-        # the failed transaction. It contains no credentials or request data.
-        frappe.log_error(
-            title="Moyasar checkout creation failed",
-            message=(
-                f"Reference: {reference_doctype} {reference_docname}\n"
-                f"Transaction: {transaction.name}\n"
-                f"Error: {safe_error}"
-            ),
-            reference_doctype=reference_doctype,
-            reference_name=reference_docname,
-            defer_insert=True,
-        )
-        frappe.throw(
-            _("Moyasar could not create the checkout: {0}").format(
-                _public_error_message(exc)
-            ),
-            title=_("Payment Gateway Error"),
-        )
+
+    # Keep local persistence outside the provider-error handler. If this code
+    # fails, Frappe must report the real local exception rather than disguising
+    # it as a Moyasar API failure.
+    transaction.db_set(
+        {
+            "moyasar_invoice_id": invoice_id,
+            "checkout_url": checkout_url,
+            "error_message": None,
+        },
+        update_modified=False,
+    )
+    transaction.moyasar_invoice_id = invoice_id
+    transaction.checkout_url = checkout_url
+    _update_reference_summary(settings, transaction, "Initiated")
+    return checkout_url
 
 
 def fetch_invoice(settings: Any, invoice_id: str) -> dict[str, Any]:
@@ -363,6 +350,38 @@ def _update_reference_summary(settings: Any, transaction: Any, status: str) -> N
 def _safe_error_message(exc: Exception) -> str:
     # Never include request headers, keys, or raw payloads in the transaction log.
     return f"{type(exc).__name__}: {str(exc)[:400]}"
+
+
+def _raise_checkout_api_error(
+    exc: MoyasarAPIError,
+    transaction: Any,
+    reference_doctype: str,
+    reference_docname: str,
+) -> NoReturn:
+    safe_error = _safe_error_message(exc)
+    transaction.db_set(
+        {"status": "Error", "error_message": safe_error},
+        update_modified=False,
+    )
+    # Frappe's deferred insert is independent of the Web Form rollback. This is
+    # best-effort diagnostics; the public error also contains the safe reason.
+    frappe.log_error(
+        title="Moyasar checkout creation failed",
+        message=(
+            f"Reference: {reference_doctype} {reference_docname}\n"
+            f"Transaction: {transaction.name}\n"
+            f"Error: {safe_error}"
+        ),
+        reference_doctype=reference_doctype,
+        reference_name=reference_docname,
+        defer_insert=True,
+    )
+    frappe.throw(
+        _("Moyasar could not create the checkout: {0}").format(
+            _public_error_message(exc)
+        ),
+        title=_("Payment Gateway Error"),
+    )
 
 
 def _public_error_message(exc: Exception) -> str:

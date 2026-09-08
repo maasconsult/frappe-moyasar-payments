@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3
+
+- Restrict friendly checkout handling to Moyasar API errors.
+- Allow unexpected local Frappe persistence errors to retain their real traceback.
+- Keep the hook-reported app version synchronized with the package version.
+
 ## 0.1.2
 
 - Show credential-free Moyasar API validation details when checkout creation fails.
