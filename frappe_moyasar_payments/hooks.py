@@ -12,8 +12,8 @@ after_install = "frappe_moyasar_payments.install.after_install"
 after_migrate = "frappe_moyasar_payments.install.after_migrate"
 before_uninstall = "frappe_moyasar_payments.install.before_uninstall"
 
-override_whitelisted_methods = {
-    "frappe.website.doctype.web_form.web_form.accept": (
-        "frappe_moyasar_payments.compat.payment_webform.accept"
-    )
-}
+# override_whitelisted_methods = {
+#     "frappe.website.doctype.web_form.web_form.accept": (
+#         "frappe_moyasar_payments.compat.payment_webform.accept"
+#     )
+# }
